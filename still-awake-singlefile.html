@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>STILL AWAKE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:#000;color:#dddde8;font-family:'Courier New',monospace;overflow:hidden;cursor:none;}
+body::after{content:'+';position:fixed;top:var(--cy,50%);left:var(--cx,50%);transform:translate(-50%,-50%);color:#cc2233;font-size:18px;pointer-events:none;z-index:9999;mix-blend-mode:difference;}
+.hidden{display:none!important;}
+
+/* BOOT */
+#boot-screen{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:100;}
+#boot-text{font-size:13px;color:#8888aa;white-space:pre;line-height:1.7;max-width:600px;}
+
+/* TITLE */
+#title-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:90;}
+#title-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#0a0005 0%,#000 70%);z-index:0;}
+#title-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px;}
+#title-glitch{font-family:Georgia,serif;font-size:clamp(52px,9vw,100px);color:#dddde8;position:relative;letter-spacing:0.25em;text-transform:uppercase;animation:tflicker 7s infinite;}
+#title-glitch::before,#title-glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;}
+#title-glitch::before{color:#cc2233;clip-path:polygon(0 30%,100% 30%,100% 50%,0 50%);animation:g1 4s infinite;}
+#title-glitch::after{color:#44aacc;clip-path:polygon(0 60%,100% 60%,100% 75%,0 75%);animation:g2 5.5s infinite;}
+@keyframes g1{0%,88%,92%,100%{transform:translate(0);opacity:0;}90%{transform:translate(-5px,2px);opacity:0.9;}}
+@keyframes g2{0%,83%,87%,100%{transform:translate(0);opacity:0;}85%{transform:translate(5px,-2px);opacity:0.9;}86%{transform:translate(-3px,1px);opacity:0.6;}}
+@keyframes tflicker{0%,96%,100%{opacity:1;}97%{opacity:0.3;}98%{opacity:1;}99%{opacity:0.5;}}
+#title-sub{font-style:italic;color:#8888aa;font-size:15px;letter-spacing:0.35em;margin-top:-8px;}
+#title-menu{display:flex;flex-direction:column;gap:14px;margin-top:24px;align-items:center;}
+.menu-item{color:#aaaacc;font-size:14px;letter-spacing:0.18em;cursor:pointer;padding:7px 14px;transition:color 0.2s,text-shadow 0.2s;border:1px solid transparent;}
+.menu-item:hover{color:#ddaa44;text-shadow:0 0 14px #664422;border-color:#331100;}
+#title-warning{position:absolute;bottom:36px;font-size:11px;color:#661122;letter-spacing:0.12em;animation:pulse 4s ease-in-out infinite;z-index:1;}
+@keyframes pulse{0%,100%{opacity:0.25;}50%{opacity:0.9;}}
+/* scanline overlay on title */
+#title-screen::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.1) 3px,rgba(0,0,0,0.1) 4px);pointer-events:none;z-index:2;}
+
+/* LORE */
+#lore-screen{position:fixed;inset:0;background:#020202;display:flex;align-items:flex-start;justify-content:center;z-index:90;overflow-y:auto;padding:40px 0;}
+#lore-container{max-width:700px;width:90%;padding-bottom:40px;}
+#lore-title{font-family:Georgia,serif;font-size:26px;color:#ddaa44;letter-spacing:0.3em;margin-bottom:28px;border-bottom:1px solid #2a2a3a;padding-bottom:14px;}
+#lore-entries{display:flex;flex-direction:column;gap:22px;}
+.lore-entry{border-left:2px solid #661122;padding-left:16px;}
+.lore-entry.locked{border-left-color:#222;opacity:0.35;}
+.lore-entry-title{font-size:11px;color:#ddaa44;letter-spacing:0.22em;margin-bottom:8px;}
+.lore-entry.locked .lore-entry-title{color:#333;}
+.lore-entry-text{font-style:italic;color:#aaaacc;font-size:14px;line-height:1.85;white-space:pre-wrap;}
+.lore-entry.locked .lore-entry-text::after{content:'[LOCKED — find this fragment in the world]';font-style:normal;font-size:11px;color:#333;display:block;}
+
+/* GAME SCREEN */
+#game-screen{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;}
+#game-canvas{display:block;image-rendering:pixelated;}
+#hud{position:absolute;top:14px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;pointer-events:none;z-index:10;}
+.hud-label{font-size:10px;color:#8888aa;letter-spacing:0.22em;}
+#sanity-bar-bg{width:110px;height:3px;background:#222;border-radius:2px;margin-left:8px;}
+#sanity-bar{height:100%;width:100%;background:#44aacc;border-radius:2px;transition:width 0.4s,background 0.4s;}
+#hud-sanity{display:flex;align-items:center;}
+#hud-day,#hud-time{font-size:10px;color:#8888aa;letter-spacing:0.2em;}
+
+/* DIALOGUE */
+#dialogue-box{position:absolute;bottom:52px;left:50%;transform:translateX(-50%);width:min(580px,90vw);background:rgba(3,3,6,0.97);border:1px solid #2a2a3a;border-top:2px solid #661122;padding:18px 22px;z-index:20;}
+#dialogue-speaker{font-size:10px;color:#ddaa44;letter-spacing:0.28em;margin-bottom:9px;}
+#dialogue-text{font-style:italic;color:#dddde8;font-size:14px;line-height:1.75;min-height:40px;}
+#dialogue-continue{text-align:right;font-size:10px;color:#8888aa;margin-top:10px;animation:pulse 1.4s infinite;}
+
+/* INVENTORY */
+#inventory-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(3,3,6,0.98);border:1px solid #2a2a3a;width:min(460px,90vw);padding:26px;z-index:30;}
+#inv-title{font-size:11px;color:#ddaa44;letter-spacing:0.3em;margin-bottom:18px;border-bottom:1px solid #1a1a2a;padding-bottom:10px;}
+#inv-items{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.inv-item{display:flex;gap:10px;align-items:flex-start;padding:7px;border:1px solid transparent;transition:border-color 0.2s;cursor:pointer;}
+.inv-item:hover{border-color:#2a2a3a;}
+.inv-item-icon{width:30px;height:30px;background:#111;border:1px solid #2a2a3a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.inv-item-name{font-size:11px;color:#aaaacc;letter-spacing:0.1em;}
+.inv-item-desc{font-style:italic;font-size:11px;color:#666688;margin-top:3px;}
+
+/* NOTE READER */
+#note-reader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#09080e;border:1px solid #1e1c28;width:min(500px,90vw);padding:34px 38px;z-index:30;box-shadow:0 0 80px rgba(0,0,0,0.9);}
+#note-content{font-style:italic;color:#c0b0a0;font-size:14px;line-height:2;white-space:pre-wrap;margin-bottom:22px;font-family:Georgia,serif;}
+
+/* OVERLAYS */
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,0.82) 100%);pointer-events:none;z-index:5;}
+#scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.13) 2px,rgba(0,0,0,0.13) 4px);pointer-events:none;z-index:6;opacity:0.6;}
+#glitch-overlay{position:absolute;inset:0;pointer-events:none;z-index:40;animation:gscreen 0.15s steps(1) infinite;}
+@keyframes gscreen{0%{clip-path:inset(10% 0 80% 0);transform:translate(-6px);background:rgba(204,34,51,0.06);}25%{clip-path:inset(60% 0 20% 0);transform:translate(6px);background:rgba(68,170,204,0.06);}50%{clip-path:inset(40% 0 50% 0);transform:translate(-3px);background:rgba(204,34,51,0.04);}75%{clip-path:inset(80% 0 5% 0);transform:translate(3px);background:rgba(68,170,204,0.03);}100%{clip-path:inset(30% 0 60% 0);transform:translate(-5px);background:rgba(204,34,51,0.05);}}
+#static-overlay{position:absolute;inset:0;pointer-events:none;z-index:41;opacity:0.25;mix-blend-mode:overlay;animation:sshift 0.08s steps(1) infinite;}
+@keyframes sshift{0%{background-position:0 0;}20%{background-position:-12px 6px;}40%{background-position:6px -11px;}60%{background-position:-5px 9px;}80%{background-position:11px -4px;}100%{background-position:-9px 5px;}}
+
+/* TRANSITION */
+#transition-screen{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:200;}
+#transition-text{font-style:italic;font-size:clamp(15px,2.5vw,22px);color:#8888aa;text-align:center;max-width:480px;line-height:1.9;padding:0 20px;white-space:pre-wrap;font-family:Georgia,serif;}
+
+/* SANITY EFFECTS */
+body.sanity-low #game-canvas{animation:shk-lo 0.09s infinite;}
+body.sanity-crit #game-canvas{animation:shk-hi 0.05s infinite;filter:saturate(0.2) contrast(1.5);}
+@keyframes shk-lo{0%,100%{transform:translate(0);}30%{transform:translate(-1px,1px);}70%{transform:translate(1px,-1px);}}
+@keyframes shk-hi{0%,100%{transform:translate(0)rotate(0);}20%{transform:translate(-2px,2px)rotate(-0.3deg);}50%{transform:translate(2px,-1px)rotate(0.2deg);}80%{transform:translate(-1px,-2px)rotate(-0.2deg);}}
+body.sanity-low #vignette{background:radial-gradient(ellipse at center,transparent 25%,rgba(70,0,0,0.65) 100%);}
+body.sanity-crit #vignette{background:radial-gradient(ellipse at center,transparent 8%,rgba(110,0,0,0.88) 100%);}
+</style>
+</head>
+<body>
+
+<div id="boot-screen"><div id="boot-text"></div></div>
+
+<div id="title-screen" class="hidden">
+  <div id="title-bg"></div>
+  <div id="title-content">
+    <div id="title-glitch" data-text="STILL AWAKE">STILL AWAKE</div>
+    <div id="title-sub">a game about remembering</div>
+    <div id="title-menu">
+      <div class="menu-item" id="btn-new-game">[ NEW GAME ]</div>
+      <div class="menu-item" id="btn-continue">[ CONTINUE ]</div>
+      <div class="menu-item" id="btn-lore">[ THE ARCHIVE ]</div>
+    </div>
+  </div>
+  <div id="title-warning">You have played this before. You just don't remember.</div>
+</div>
+
+<div id="lore-screen" class="hidden">
+  <div id="lore-container">
+    <div id="lore-title">THE ARCHIVE</div>
+    <div id="lore-entries"></div>
+    <div class="menu-item" id="btn-lore-back" style="margin-top:28px;">[ BACK ]</div>
+  </div>
+</div>
+
+<div id="game-screen" class="hidden">
+  <canvas id="game-canvas"></canvas>
+  <div id="hud">
+    <div id="hud-sanity"><span class="hud-label">MIND</span><div id="sanity-bar-bg"><div id="sanity-bar"></div></div></div>
+    <div id="hud-day">CYCLE <span id="day-counter">1</span></div>
+    <div id="hud-time">——</div>
+  </div>
+  <div id="dialogue-box" class="hidden">
+    <div id="dialogue-speaker"></div>
+    <div id="dialogue-text"></div>
+    <div id="dialogue-continue">[ SPACE to continue ]</div>
+  </div>
+  <div id="inventory-panel" class="hidden">
+    <div id="inv-title">WHAT YOU CARRY</div>
+    <div id="inv-items"></div>
+    <div class="menu-item" id="btn-inv-close">[ CLOSE ]</div>
+  </div>
+  <div id="note-reader" class="hidden">
+    <div id="note-content"></div>
+    <div class="menu-item" id="btn-note-close">[ FOLD IT AWAY ]</div>
+  </div>
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+  <div id="glitch-overlay" class="hidden"></div>
+  <div id="static-overlay" class="hidden" style="background-image:url('data:image/svg+xml,<svg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.18%22/></svg>');"></div>
+</div>
+
+<div id="transition-screen" class="hidden"><div id="transition-text"></div></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// ENGINE
+// ═══════════════════════════════════════════════
+const Engine = (() => {
+  const TILE = 32;
+  let canvas, ctx, W, H, camX=0, camY=0, tCamX=0, tCamY=0;
+  function init() {
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    resize();
+    window.addEventListener('resize', resize);
+    document.addEventListener('mousemove', e => {
+      document.documentElement.style.setProperty('--cx', e.clientX+'px');
+      document.documentElement.style.setProperty('--cy', e.clientY+'px');
+    });
+  }
+  function resize() {
+    W = Math.floor(window.innerWidth/TILE)*TILE;
+    H = Math.floor(window.innerHeight/TILE)*TILE;
+    canvas.width=W; canvas.height=H;
+  }
+  function updateCamera(px,py) {
+    tCamX=px-W/2; tCamY=py-H/2;
+    camX+=(tCamX-camX)*0.12; camY+=(tCamY-camY)*0.12;
+  }
+  function clear() { ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); }
+  function drawTile(color,wx,wy,w=TILE,h=TILE,a=1) {
+    const sx=wx-camX, sy=wy-camY;
+    if(sx+w<0||sx>W||sy+h<0||sy>H) return;
+    ctx.globalAlpha=a; ctx.fillStyle=color;
+    ctx.fillRect(Math.round(sx),Math.round(sy),w,h);
+    ctx.globalAlpha=1;
+  }
+  function drawSprite(sp,wx,wy) {
+    const sx=Math.round(wx-camX), sy=Math.round(wy-camY);
+    if(sx+TILE<0||sx>W||sy+TILE<0||sy>H) return;
+    ctx.fillStyle=sp.color; ctx.fillRect(sx,sy,TILE,TILE);
+    if(sp.outline){ctx.strokeStyle=sp.outline;ctx.lineWidth=1;ctx.strokeRect(sx+.5,sy+.5,TILE-1,TILE-1);}
+    if(sp.eyes){
+      ctx.fillStyle=sp.eyeColor||'#000';
+      const eo={down:[[8,20],[20,20]],up:[[8,10],[20,10]],left:[[6,16],[6,20]],right:[[22,16],[22,20]]};
+      (eo[sp.dir]||eo.down).forEach(([ex,ey])=>ctx.fillRect(sx+ex,sy+ey,3,3));
+    }
+  }
+  function get(){return{canvas,ctx,W,H,TILE,camX,camY};}
+  return{init,resize,clear,updateCamera,drawTile,drawSprite,get,get TILE(){return TILE;}};
+})();
+
+// ═══════════════════════════════════════════════
+// LORE
+// ═══════════════════════════════════════════════
+const LORE = {
+  archiveEntries:[
+    {id:"archive_town",title:"DOCUMENT 001 — THE TOWN OF CALLOW",text:"Callow was incorporated in 1887 as a mining settlement. It does not appear on any state map after 1961. The post office closed. The school closed. The people, according to county records, relocated. According to nothing else, they did.",unlocked:true},
+    {id:"archive_subject",title:"DOCUMENT 002 — THE SUBJECT",text:"You arrived in Callow on a Tuesday. You do not remember why. You had a bag. You had a name. You have the bag. The name still comes when called, but it sounds like it belongs to someone else now.",unlocked:true},
+    {id:"archive_loop",title:"DOCUMENT 003 — ON CYCLES",text:"The first time you played this, you went left. The second time, right. The third time, you stood still for eleven minutes before your hands moved again. We have been watching all three times. There is no fourth time that doesn't end here.",unlocked:false},
+    {id:"archive_maren",title:"DOCUMENT 004 — MAREN",text:"She is not a ghost. Ghosts are echoes of the dead. Maren is an echo of something that hasn't happened yet. When she tells you she's been waiting, believe her. She has been waiting longer than the town has existed.",unlocked:false},
+    {id:"archive_mirror",title:"DOCUMENT 005 — THE MIRROR PROBLEM",text:"There is a version of you that never entered the house on Vellum Street. That version is not playing this game. That version is fine. We are not concerned with that version.",unlocked:false},
+    {id:"archive_watcher",title:"DOCUMENT 006 — WHO IS WATCHING",text:"Not us. We stopped watching after the third cycle. What watches now has no name in any language you speak. It learned your patterns. It finds them satisfying. It will be disappointed when you leave.",unlocked:false},
+    {id:"archive_ending",title:"DOCUMENT 007 — THE THREE REAL ENDINGS",text:"One: You leave Callow. The road is longer than it was. You walk it anyway.\n\nTwo: You stay. You become part of the pattern. Maren smiles for the first time.\n\nThree: You find the basement under the church and you understand. We cannot describe what happens after understanding. Language does not survive it.",unlocked:false},
+  ],
+  notes:{
+    note_torn_page:{title:"torn page",content:"...the third night it started in the walls. Not scratching. More like\nbreathing. Dr. Voss said to document everything so I'm documenting.\n\nDay 14 — heard my name said by no mouth\nDay 15 — the wallpaper has been here longer than the house\nDay 16 — I think the town knows I'm writing this\nDay 17 — I stopped writing for three days. I don't know what I did instead.\nDay 18 — I found this journal in my hands. I don't remember picking it up.\n\nIf you're reading this you already made the mistake I made.\nThe mistake is staying long enough to find the first note."},
+    note_childs_drawing:{title:"child's drawing",content:"[A crayon drawing of a house. In the upstairs window, a figure stands.\nIn the downstairs window, a different figure stands.\nBelow the house, in careful child's handwriting:]\n\nthe one upstairs knows\nthe one downstairs forgets\nI am neither\n        — L"},
+    note_dr_voss:{title:"Dr. Voss — case notes",content:"Patient presents with: temporal disorientation, inability to account\nfor lost time, insistence that \"the town moves when no one is looking.\"\n\nPatient is lucid. Patient is coherent. Patient is describing something real.\n\nI have begun to hear it too. The breathing in the walls.\n\nI will not write this in the official file.\nI will not write this in the official file.\nI will not write this in the official file.\n\n[The last line is written seventeen more times, in increasingly\nuneven handwriting, until the pen tears through the paper.]"},
+    note_postmaster:{title:"last entry — postmaster's log",content:"September 3rd, 1961.\n\nNo outgoing mail today.\nNo incoming mail today.\nNo people today.\n\nI have been here thirty years. I know all their names.\nThis morning I couldn't remember a single one.\n\nThe town is still here. The buildings, the streets, the church.\nBut something has been removed from it. Like a word you've always known\nand suddenly cannot say.\n\nI am going to walk to the edge of Callow now.\nI have never done this before.\nI don't know why."},
+    note_maren_letter:{title:"unsent letter — no address",content:"I know you'll find this. You always find this.\n\nI've tried leaving it in different places — the well, the church,\nonce I burned it and it was back in my pocket by morning.\n\nSo. You found it.\n\nYou're going to ask me what I am. I'm going to tell you I don't know.\nThat's not deflection. I genuinely don't know what I am anymore.\nI know what I was. I was the last person to leave Callow.\n\nExcept I didn't leave.\n\nDon't trust the clock in the church. Don't trust what you see\nin still water. And don't — please — go into the basement\nbefore you understand what the basement is for.\n\nI'll find you before you find it. I always do.\n\n                — M"},
+    note_hidden_wall:{title:"writing scratched into plaster",content:"CYCLE   1: subject left town.     town followed.\nCYCLE   2: subject stayed.        subject forgot.\nCYCLE   3: subject found note.    subject understood.   subject stayed.\nCYCLE   4: subject found note.    subject understood.   subject stayed.\nCYCLE   5: subject found note.    subject understood.   subject stayed.\n[...]\nCYCLE  ██: subject found note.    subject—\n\n[The rest has been scratched out. By fingernails, by the look of it.]"},
+    note_game_manual:{title:"\"STILL AWAKE\" — original manual",content:"STILL AWAKE\nA game for one player.\nDuration: indefinite.\n\nCONTROLS: move. examine. remember.\nGOAL: unclear.\nWINNING CONDITION: none documented.\n\nNOTE FROM DEVELOPER:\nThis game was not designed. It was transcribed.\nThe town of Callow exists. The events in this game happened.\nWe changed the names. We changed the faces.\nWe could not change what it felt like to be there.\n\nIf at any point the game addresses you directly,\nthis is not a bug.\n\nWe're sorry."},
+    note_basement_door:{title:"note nailed to a door",content:"WHAT IS BELOW KNOWS YOU ARE ABOVE\n\nit is not malicious\nit is not benevolent\nit is interested\n\nif you go down, it will show you something true\nmost people cannot carry a true thing back up the stairs\n\nyou can leave now\nthe road out still works\nI checked this morning\n\nbut you won't leave\nthey never leave after finding this note\nI don't know why I keep writing it\n\n                — the last postmaster of Callow"}
+  },
+  dialogues:{
+    maren_first:[
+      {speaker:"MAREN",text:"You're new. That's— that's actually remarkable. I haven't seen a new face in..."},
+      {speaker:"MAREN",text:"Actually I'm not sure how long. Time moves differently here. You'll notice."},
+      {speaker:"MAREN",text:"Don't sleep in the house on Vellum Street. Don't ask anyone why. They won't remember, and it'll upset them."},
+      {speaker:"MAREN",text:"My name is Maren. I've been here long enough to stop counting. Find me when you know what you're looking for."}
+    ],
+    maren_second:[
+      {speaker:"MAREN",text:"You found one of the notes."},
+      {speaker:"MAREN",text:"Everyone who stays long enough finds one. They think it's an accident. It isn't."},
+      {speaker:"MAREN",text:"The town leaves them for you. Like a trail."},
+      {speaker:"MAREN",text:"I'd tell you to stop following it, but..."},
+      {speaker:"MAREN",text:"...you won't."}
+    ],
+    maren_basement:[
+      {speaker:"MAREN",text:"You found the church."},
+      {speaker:"MAREN",text:"I can't go in with you. I've tried. There's something in there that knows what I am and it won't let me pass."},
+      {speaker:"MAREN",text:"Whatever you see down there—"},
+      {speaker:"MAREN",text:"Remember that it's showing you what it thinks you want."},
+      {speaker:"MAREN",text:"It isn't wrong, exactly. That's the problem."}
+    ],
+    old_man_henrick:[
+      {speaker:"HENRICK",text:"Stranger. Don't get many of those."},
+      {speaker:"HENRICK",text:"My advice? Don't look for the thing that's wrong here. If you look for it, it notices you looking."},
+      {speaker:"HENRICK",text:"I've been here fifty years. I've never looked. I'm fine."},
+      {speaker:"HENRICK",text:"Mostly fine."}
+    ],
+    old_man_henrick_2:[
+      {speaker:"HENRICK",text:"You're still here."},
+      {speaker:"HENRICK",text:"You looked, didn't you."},
+      {speaker:"HENRICK",text:"...I thought so."},
+      {speaker:"HENRICK",text:"Come back and see me when it starts talking back."}
+    ],
+    the_child:[
+      {speaker:"???",text:"Are you the one from before?"},
+      {speaker:"???",text:"There was someone here before. They looked just like you."},
+      {speaker:"???",text:"They left. I think. Or they stopped being the kind of thing that can leave."},
+      {speaker:"???",text:"I don't remember their name. I remember their face though."},
+      {speaker:"???",text:"It's your face."}
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════
+// WORLD
+// ═══════════════════════════════════════════════
+const World = (() => {
+  const T=32;
+  const TILES={
+    VOID:{color:'#000',solid:true},
+    FLOOR:{color:'#1a1a14',solid:false},
+    FLOOR2:{color:'#151510',solid:false},
+    WALL:{color:'#2a2820',solid:true,outline:'#3a3830'},
+    WALL2:{color:'#1e1c16',solid:true,outline:'#2a2820'},
+    GRASS:{color:'#0c140a',solid:false},
+    GRASS2:{color:'#0a1208',solid:false},
+    DIRT:{color:'#181108',solid:false},
+    ROAD:{color:'#131310',solid:false},
+    DOOR:{color:'#3a2010',solid:false},
+    TREE:{color:'#091506',solid:true,canopy:'#0e2208'},
+    ROCK:{color:'#222220',solid:true},
+  };
+  const CMAP={'V':'VOID','F':'FLOOR','f':'FLOOR2','W':'WALL','w':'WALL2','G':'GRASS','g':'GRASS2','d':'DIRT','R':'ROAD','r':'ROAD','D':'DOOR','T':'TREE','K':'ROCK','S':'WALL'};
+  let interactables=[],currentMap=null,mapW=0,mapH=0,tileData=[];
+
+  const MAPS={
+    town:{
+      width:40,height:30,spawnX:19,spawnY:22,
+      exits:[
+        {x:19,y:29,to:'road_south',spawnX:12,spawnY:2},
+        {x:0,y:14,to:'forest_edge',spawnX:38,spawnY:10},
+        {x:39,y:14,to:'church_exterior',spawnX:1,spawnY:12},
+      ],
+      layout:[
+        "VVVVVVTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+        "VVVVTTTTGGGGGGGGGGGGGGGGGGGGGGGGGGTTTTv",
+        "VVVTTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTTv",
+        "VVTTGGGGGwwwwwwGGGGGGGGGGGGwwwwwwGGGGTTv",
+        "VVTTGGGGGwFFFFwGGGGGGGGGGGGwFFFFwGGGGTTv",
+        "VVTTGGGGGwFFFFwGGGGGGGGGGGGwFFFFwGGGGTTv",
+        "VVTTGGGGGwwDwwwGGGGGGGGGGGGwwDwwwGGGGTTv",
+        "VVTTGGGGGGdddddGGGGGGGGGGGdddddGGGGGTTvv",
+        "VVTTGGGGGGdddddGGGGGGGGGGGdddddGGGGGTTvv",
+        "VVTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTvv",
+        "VVTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTvv",
+        "VVTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTvv",
+        "VVTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTvv",
+        "VTTGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGTTvv",
+        "VTTGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGTvv",
+        "VTTGGGRRRRRRRRRRRRRRRRRRRRRRRRRRRRRGGGTvv",
+        "VVTTGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTTvv",
+        "VVTTGGGGGGGGGwwwwwwwwwwwwGGGGGGGGGGTTTvv",
+        "VVTTGGGGGGGGGwFFFFFFFFFFwGGGGGGGGGGTTTvv",
+        "VVVTTGGGGGGGGwFFGFFFFFFwGGGGGGGGGTTTTvvv",
+        "VVVVTTGGGGGGGwFFFFFFFFwGGGGGGGGGTTTTvvvv",
+        "VVVVTTGGGGGGGwFFFFFFFDwGGGGGGGGGTTTTvvvv",
+        "VVVVVTTGGGGGGwwwwwwwwwwGGGGGGGGTTTTTvvvv",
+        "VVVVVTTTGGGGGGGGGRRRRRRGGGGGGGGTTTvvvvvv",
+        "VVVVVVTTTGGGGGGGGRRRRRRGGGGGGGTTTTvvvvvv",
+        "VVVVVVVTTTGGGGGGGRRRRRRGGGGGGTTTTTvvvvvv",
+        "VVVVVVVVTTTGGGGGGRRRRRRGGGGGTTTTTTvvvvvv",
+        "VVVVVVVVVTTTGGGGGRRRRRRGGGGTTTTTvvvvvvvv",
+        "VVVVVVVVVVVTTTGGGRRRRRRGGGTTTTvvvvvvvvvv",
+        "VVVVVVVVVVVVVTTTRRRRRRRRTTTvvvvvvvvvvvvv",
+      ],
+      interactables:[
+        {x:14,y:4,type:'npc',id:'henrick',dialogueKey:'old_man_henrick'},
+        {x:22,y:18,type:'npc',id:'maren',dialogueKey:'maren_first'},
+        {x:20,y:19,type:'sign',text:"CALLOW COMMUNITY BOARD\n\n— Town meeting CANCELLED (see reverse)\n— Dr. Voss unavailable until further notice\n— Please do not approach the church after dark\n— Please do not ask why"},
+        {x:5,y:5,type:'note',itemId:'note_torn_page'},
+        {x:30,y:5,type:'note',itemId:'note_childs_drawing'},
+        {x:7,y:13,type:'note',itemId:'note_postmaster',hidden:true},
+      ]
+    },
+    church_exterior:{
+      width:30,height:24,spawnX:2,spawnY:12,
+      exits:[
+        {x:0,y:12,to:'town',spawnX:38,spawnY:14},
+        {x:14,y:1,to:'church_interior',spawnX:7,spawnY:17}
+      ],
+      layout:[
+        "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+        "VVVVVVVVVVGGGGGDGGGGGGVVVVVVVV",
+        "VVVVVVVVGGWWWWWWWWWWWWWGGVVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWFFFFFFFFFFFFFWGGGVVVVV",
+        "VVVVVVVGGWWWWWWWWWWWWWWWGGGVVVVV",
+        "VVVVVVVGGGGGGGGGGGGGGGGGGGGVVVVV",
+        "VVGGGGGGGGGGGRRRRRRRRGGGGGGGGGGV",
+        "VVGGGGGGGGGGGRRRRRRRRGGGGGGGGGGV",
+        "VVVGGGGGGGGGGRRRRRRRRGGGGGGGGGVV",
+        "VVVVGGGGGKKKGGGGGGGGGGGKKKGGVVVV",
+        "VVVVVGGGGKKKGGGGGGGGGGGKKKGGGVVV",
+        "VVVVVVGGGGGGGGGGGGGGGGGGGGGGVVVV",
+        "VVVVVVVGGGGGGGGGGGGGGGGGGGGVVVVV",
+        "VVVVVVVVGGGGGGGGGGGGGGGGGVVVVVVV",
+        "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+        "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+        "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+        "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+      ],
+      interactables:[
+        {x:14,y:6,type:'npc',id:'maren_church',dialogueKey:'maren_basement'},
+        {x:8,y:8,type:'note',itemId:'note_basement_door'},
+        {x:18,y:8,type:'note',itemId:'note_game_manual',hidden:true},
+      ]
+    },
+    church_interior:{
+      width:16,height:22,spawnX:7,spawnY:18,
+      exits:[
+        {x:7,y:20,to:'church_exterior',spawnX:14,spawnY:2},
+        {x:7,y:2,to:'ending_understand',spawnX:7,spawnY:2,requireItem:'iron_key'}
+      ],
+      layout:[
+        "VVVVVVVVVVVVVVVV",
+        "VVVVVVVVVVVVVVVV",
+        "VVVWWWWWWWWWWWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFwwwwwFFFFWvv",
+        "VVVWFFwFFFwFFFFWvv",
+        "VVVWFFwFFFwFFFFWvv",
+        "VVVWFFwFFFwFFFFWvv",
+        "VVVWFFwFFFwFFFFWvv",
+        "VVVWFFwwwwwFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWFFFFFFFFFFWvv",
+        "VVVWWWWWWWWWWWWvv",
+        "VVVVVVVVDVVVVVVvv",
+        "VVVVVVVVVVVVVVvvv",
+        "VVVVVVVVVVVVVVvvv",
+      ],
+      interactables:[
+        {x:7,y:5,type:'note',itemId:'note_dr_voss'},
+        {x:5,y:11,type:'note',itemId:'note_maren_letter'},
+        {x:11,y:13,type:'item',itemId:'iron_key',label:'an iron key',icon:'🗝'},
+        {x:9,y:4,type:'npc',id:'the_child',dialogueKey:'the_child'},
+      ]
+    },
+    road_south:{
+      width:25,height:38,spawnX:12,spawnY:2,
+      exits:[
+        {x:12,y:0,to:'town',spawnX:19,spawnY:28},
+        {x:12,y:37,to:'ending_escape',spawnX:5,spawnY:2}
+      ],
+      layout:(()=>{const rows=[];for(let r=0;r<38;r++){let row='';for(let c=0;c<25;c++){if(c===0||c===24)row+='T';else if(c>=10&&c<=14)row+='R';else if(c<=2||c>=22)row+='T';else row+='G';}rows.push(row);}return rows;})(),
+      interactables:[
+        {x:12,y:19,type:'note',itemId:'note_hidden_wall'},
+        {x:7,y:10,type:'npc',id:'henrick_road',dialogueKey:'old_man_henrick_2'},
+      ]
+    },
+    forest_edge:{
+      width:40,height:20,spawnX:38,spawnY:10,
+      exits:[{x:0,y:10,to:'town',spawnX:2,spawnY:14}],
+      layout:(()=>{const rows=[];for(let r=0;r<20;r++){let row='';for(let c=0;c<40;c++){const d=c/40;if(d>0.75&&Math.random()<d)row+='T';else if(d>0.45&&Math.random()<0.25)row+='K';else row+=Math.random()<0.65?'G':'g';}rows.push(row);}return rows;})(),
+      interactables:[]
+    },
+    ending_escape:{
+      width:10,height:5,spawnX:5,spawnY:2,exits:[],
+      layout:["FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF"],
+      interactables:[],onLoad:()=>GameState.triggerEnding('escape')
+    },
+    ending_understand:{
+      width:10,height:5,spawnX:5,spawnY:2,exits:[],
+      layout:["FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF","FFFFFFFFFF"],
+      interactables:[],onLoad:()=>GameState.triggerEnding('understand')
+    }
+  };
+
+  function parseLayout(m){
+    tileData=[];mapW=m.width;mapH=m.height;
+    for(let y=0;y<m.layout.length;y++){
+      tileData[y]=[];
+      for(let x=0;x<m.width;x++){
+        const ch=(m.layout[y]||'')[x]||'V';
+        tileData[y][x]=TILES[CMAP[ch]||'VOID'];
+      }
+    }
+  }
+  function loadMap(name){
+    currentMap=MAPS[name];
+    if(!currentMap){console.error('No map:',name);return null;}
+    parseLayout(currentMap);
+    interactables=(currentMap.interactables||[]).map(i=>({...i,triggered:false}));
+    if(currentMap.onLoad)currentMap.onLoad();
+    return currentMap;
+  }
+  function getTile(tx,ty){
+    if(ty<0||ty>=tileData.length||tx<0||tx>=mapW)return TILES.VOID;
+    return tileData[ty][tx]||TILES.VOID;
+  }
+  function isSolid(wx,wy){return getTile(Math.floor(wx/T),Math.floor(wy/T)).solid;}
+  function getExit(tx,ty){return currentMap?(currentMap.exits||[]).find(e=>e.x===tx&&e.y===ty)||null:null;}
+  function getInteractable(tx,ty,san){
+    return interactables.find(i=>i.x===tx&&i.y===ty&&!(i.hidden&&san>30))||null;
+  }
+  function shiftRed(hex,amt){
+    let r=parseInt(hex.slice(1,3),16)||0;
+    let g=parseInt(hex.slice(3,5),16)||0;
+    let b=parseInt(hex.slice(5,7),16)||0;
+    r=Math.min(255,r+Math.round(amt*90));
+    return`rgb(${r},${g},${b})`;
+  }
+  function render(tick,san){
+    const{ctx,W,H,camX,camY}=Engine.get();
+    const sx=Math.floor(camX/T)-1,sy=Math.floor(camY/T)-1;
+    const ex=sx+Math.ceil(W/T)+2,ey=sy+Math.ceil(H/T)+2;
+    for(let ty=sy;ty<=ey;ty++){
+      for(let tx=sx;tx<=ex;tx++){
+        const tile=getTile(tx,ty);
+        let color=tile.color;
+        if(!tile.solid&&san<40)color=shiftRed(color,(40-san)/40*0.18);
+        Engine.drawTile(color,tx*T,ty*T);
+        if(tile.outline){
+          const px=tx*T-camX,py=ty*T-camY;
+          ctx.strokeStyle=tile.outline;ctx.lineWidth=1;
+          ctx.strokeRect(Math.round(px)+.5,Math.round(py)+.5,T-1,T-1);
+        }
+        if(tile.canopy)Engine.drawTile(tile.canopy,tx*T+4,ty*T+4,T-8,T-8);
+      }
+    }
+    interactables.forEach(obj=>{
+      if(obj.triggered)return;
+      if(obj.hidden&&san>30)return;
+      const px=obj.x*T-camX+T/2,py=obj.y*T-camY+T/2;
+      if(px<0||px>W||py<0||py>H)return;
+      const pulse=0.28+0.2*Math.sin(tick*0.07);
+      ctx.globalAlpha=pulse;
+      ctx.fillStyle=obj.type==='npc'?'#ddaa44':obj.type==='item'?'#44aacc':'#cc2233';
+      ctx.beginPath();ctx.arc(px,py-T/2+3,3,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    });
+  }
+  return{loadMap,getTile,isSolid,getExit,getInteractable,render,get currentMap(){return currentMap;}};
+})();
+
+// ═══════════════════════════════════════════════
+// PLAYER
+// ═══════════════════════════════════════════════
+const Player = (() => {
+  const SPD=2.2,T=32;
+  let x,y,dir='down',moving=false,inv=[],cooldown=0;
+  const SP={color:'#c8b89a',outline:'#8a7860',eyes:true,eyeColor:'#1a1410',dir:'down'};
+  function init(wx,wy){x=wx*T;y=wy*T;dir='down';moving=false;inv=GameState.loadInventory()||[];}
+  function update(keys){
+    if(UI.isBlocking())return;
+    let dx=0,dy=0;
+    if(keys['ArrowLeft']||keys['a']){dx=-SPD;dir='left';}
+    if(keys['ArrowRight']||keys['d']){dx=SPD;dir='right';}
+    if(keys['ArrowUp']||keys['w']){dy=-SPD;dir='up';}
+    if(keys['ArrowDown']||keys['s']){dy=SPD;dir='down';}
+    if(dx&&dy){dx*=0.707;dy*=0.707;}
+    moving=!!(dx||dy);SP.dir=dir;
+    if(dx){const nx=x+dx;if(!collide(nx,y))x=nx;}
+    if(dy){const ny=y+dy;if(!collide(x,ny))y=ny;}
+    Engine.updateCamera(x+T/2,y+T/2);
+    const tx=Math.floor((x+T/2)/T),ty=Math.floor((y+T/2)/T);
+    const exit=World.getExit(tx,ty);
+    if(exit){
+      if(exit.requireItem&&!hasItem(exit.requireItem))UI.showDialogue('???','The way is locked. You need something.','LOCKED');
+      else GameEvents.emit('mapTransition',exit);
+    }
+    if(cooldown>0)cooldown--;
+    if(moving)Sanity.onMove();
+  }
+  function collide(wx,wy){
+    const m=4;
+    return[[wx+m,wy+m],[wx+T-m,wy+m],[wx+m,wy+T-m],[wx+T-m,wy+T-m]].some(([cx,cy])=>World.isSolid(cx,cy));
+  }
+  function tryInteract(){
+    if(cooldown>0)return;
+    const off={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]};
+    const [ox,oy]=off[dir];
+    const tx=Math.floor((x+T/2)/T)+ox,ty=Math.floor((y+T/2)/T)+oy;
+    const obj=World.getInteractable(tx,ty,Sanity.get());
+    if(obj){cooldown=30;GameEvents.emit('interact',obj);}
+  }
+  function hasItem(id){return inv.some(i=>i.id===id);}
+  function addItem(item){
+    if(!hasItem(item.id)){inv.push(item);GameState.saveInventory(inv);UI.showPickup(item);}
+  }
+  function render(tick){
+    const bob=moving?Math.sin(tick*0.25)*2:0;
+    Engine.drawSprite(SP,x,y+bob);
+    if(moving&&tick%8===0)Engine.drawTile('rgba(200,180,140,0.12)',x+8,y+T-4,16,4);
+  }
+  return{init,update,tryInteract,render,hasItem,addItem,getInventory:()=>inv};
+})();
+
+// ═══════════════════════════════════════════════
+// NPC
+// ═══════════════════════════════════════════════
+const NPC={
+  SPRITES:{
+    maren:{color:'#7a6070',outline:'#5a4054',eyes:true,eyeColor:'#c8a0b0',dir:'down'},
+    maren_church:{color:'#6a5060',outline:'#4a3044',eyes:true,eyeColor:'#d0a8b8',dir:'down'},
+    henrick:{color:'#4a4038',outline:'#3a3028',eyes:true,eyeColor:'#887060',dir:'down'},
+    henrick_road:{color:'#4a4038',outline:'#3a3028',eyes:true,eyeColor:'#887060',dir:'down'},
+    the_child:{color:'#8090a0',outline:'#607080',eyes:true,eyeColor:'#304050',dir:'down'},
+  },
+  render(obj,tick){
+    const sp=this.SPRITES[obj.id]||{color:'#555',outline:'#333',eyes:false,dir:'down'};
+    Engine.drawSprite(sp,obj.x*32,obj.y*32+0.5*Math.sin(tick*0.04+(obj.x+obj.y)));
+  }
+};
+
+// ═══════════════════════════════════════════════
+// SANITY
+// ═══════════════════════════════════════════════
+const Sanity = (() => {
+  let val=100,steps=0,htick=0;
+  const EVENTS=[
+    ()=>{UI.showDialogue('MAREN',"You've been here before. You know that, right?",'WHISPER');setTimeout(()=>UI.hideDialogue(),2800);},
+    ()=>{GameState.invertControls(180);},
+    ()=>{const e=document.getElementById('glitch-overlay');e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),350);},
+    ()=>{UI.showMessage("something walked behind you");},
+    ()=>{const h=document.getElementById('hud');h.style.opacity='0';setTimeout(()=>h.style.opacity='1',700);},
+    ()=>{const e=document.getElementById('day-counter');const r=e.textContent;e.textContent=parseInt(r)+Math.floor(Math.random()*40+8);setTimeout(()=>e.textContent=r,1400);},
+    ()=>{UI.showMessage("you are not alone on this screen");},
+    ()=>{const e=document.getElementById('static-overlay');e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),900);},
+    ()=>{UI.showMessage("it noticed you reading that");},
+  ];
+  function onMove(){steps++;if(steps%120===0&&val>0){val=Math.max(0,val-0.5);_ui();}}
+  function drain(amt){val=Math.max(0,val-amt);_ui();}
+  function restore(amt){val=Math.min(100,val+amt);_ui();}
+  function tick(){
+    htick++;
+    const chance=val<20?0.009:val<50?0.003:0.0004;
+    if(Math.random()<chance)EVENTS[Math.floor(Math.random()*EVENTS.length)]();
+    const body=document.body;
+    body.classList.toggle('sanity-low',val<40);
+    body.classList.toggle('sanity-crit',val<15);
+    const bar=document.getElementById('sanity-bar');
+    if(bar){
+      bar.style.background=val>60?'#44aacc':val>30?'#ddaa44':'#cc2233';
+    }
+  }
+  function _ui(){const bar=document.getElementById('sanity-bar');if(bar)bar.style.width=val+'%';}
+  function get(){return val;}
+  function set(v){val=Math.max(0,Math.min(100,v));_ui();}
+  return{onMove,drain,restore,tick,get,set};
+})();
+
+// ═══════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════
+const UI = (() => {
+  let blocking=false,queue=[],active=false,typeInt=null,msgTO=null;
+  function showDialogueSequence(lines){queue=[...lines];_next();}
+  function _next(){
+    if(queue.length===0){hideDialogue();return;}
+    const line=queue.shift();
+    showDialogue(line.speaker,line.text);
+    active=true;blocking=true;
+  }
+  function showDialogue(sp,text,spOver){
+    const box=document.getElementById('dialogue-box');
+    document.getElementById('dialogue-speaker').textContent=spOver||sp||'';
+    document.getElementById('dialogue-text').textContent='';
+    box.classList.remove('hidden');
+    blocking=true;active=true;
+    if(typeInt)clearInterval(typeInt);
+    let i=0;
+    typeInt=setInterval(()=>{
+      document.getElementById('dialogue-text').textContent+=text[i++];
+      if(i>=text.length){clearInterval(typeInt);typeInt=null;}
+    },26);
+  }
+  function advanceDialogue(){
+    if(!active)return;
+    if(typeInt){clearInterval(typeInt);typeInt=null;}
+    _next();
+  }
+  function hideDialogue(){
+    document.getElementById('dialogue-box').classList.add('hidden');
+    active=false;blocking=false;
+  }
+  function showInventory(items){
+    blocking=true;
+    const c=document.getElementById('inv-items');c.innerHTML='';
+    if(!items.length)c.innerHTML='<div style="color:#444;font-size:11px;font-style:italic">nothing yet</div>';
+    items.forEach(item=>{
+      const d=document.createElement('div');d.className='inv-item';
+      d.innerHTML=`<div class="inv-item-icon">${item.icon||'?'}</div><div><div class="inv-item-name">${item.name}</div><div class="inv-item-desc">${item.description||''}</div></div>`;
+      c.appendChild(d);
+    });
+    document.getElementById('inventory-panel').classList.remove('hidden');
+  }
+  function hideInventory(){document.getElementById('inventory-panel').classList.add('hidden');blocking=false;}
+  function showNote(note){
+    blocking=true;
+    document.getElementById('note-content').textContent=note.content;
+    document.getElementById('note-reader').classList.remove('hidden');
+    Sanity.drain(8);
+  }
+  function hideNote(){document.getElementById('note-reader').classList.add('hidden');blocking=false;}
+  function showPickup(item){showMessage('found: '+item.name);}
+  function showMessage(text){
+    if(msgTO)clearTimeout(msgTO);
+    const existing=document.getElementById('hud-msg');if(existing)existing.remove();
+    const el=document.createElement('div');el.id='hud-msg';
+    el.style.cssText='position:absolute;bottom:108px;left:50%;transform:translateX(-50%);font-size:11px;color:#cc2233;letter-spacing:0.15em;z-index:25;pointer-events:none;';
+    el.textContent=text;
+    document.getElementById('game-screen').appendChild(el);
+    msgTO=setTimeout(()=>el.remove(),3000);
+  }
+  function buildLoreScreen(){
+    const c=document.getElementById('lore-entries');c.innerHTML='';
+    const ul=GameState.getUnlockedLore();
+    LORE.archiveEntries.forEach(entry=>{
+      const isU=entry.unlocked||ul.includes(entry.id);
+      const d=document.createElement('div');d.className='lore-entry'+(isU?'':' locked');
+      d.innerHTML=`<div class="lore-entry-title">${entry.title}</div><div class="lore-entry-text">${isU?entry.text:''}</div>`;
+      c.appendChild(d);
+    });
+  }
+  function showTransition(text,cb,delay=2000){
+    const sc=document.getElementById('transition-screen');
+    document.getElementById('transition-text').textContent=text;
+    sc.classList.remove('hidden');blocking=true;
+    setTimeout(()=>{sc.classList.add('hidden');blocking=false;if(cb)cb();},delay);
+  }
+  function isBlocking(){return blocking;}
+  return{showDialogue,showDialogueSequence,advanceDialogue,hideDialogue,showInventory,hideInventory,showNote,hideNote,showPickup,showMessage,buildLoreScreen,showTransition,isBlocking,setBlocking:v=>blocking=v};
+})();
+
+// ═══════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════
+const GameState = (() => {
+  const KEY='still_awake_save';
+  function load(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch{return{};}}
+  function save(d){const c=load();localStorage.setItem(KEY,JSON.stringify({...c,...d}));}
+  function getCycle(){return load().cycle||1;}
+  function incrementCycle(){const c=getCycle()+1;save({cycle:c});return c;}
+  function hasSave(){return!!load().cycle;}
+  function clearSave(){localStorage.removeItem(KEY);}
+  function loadInventory(){return load().inventory||[];}
+  function saveInventory(inv){save({inventory:inv});}
+  function unlockLore(id){const ul=load().unlockedLore||[];if(!ul.includes(id)){ul.push(id);save({unlockedLore:ul});}}
+  function getUnlockedLore(){return load().unlockedLore||[];}
+  let _inv=false,_invTO=null;
+  function invertControls(frames){_inv=true;if(_invTO)clearTimeout(_invTO);_invTO=setTimeout(()=>_inv=false,frames*16);}
+  function isInverted(){return _inv;}
+  function triggerEnding(type){
+    const cycle=getCycle();
+    const endings={
+      escape:[`You reach the end of the road.`,`Behind you, Callow is exactly where you left it.`,`You don't look back.`,`That was a mistake.`,`CYCLE ${cycle} COMPLETE\n\nYou left.\nThe town is still there.\nIt will still be there next time.`],
+      stay:[`You put down your bag.`,`Maren doesn't say anything. She doesn't have to.`,`The town settles around you like a held breath finally released.`,`This is the second-worst ending.\n\nYou are now part of the pattern.\nCYCLE ${cycle} — PERMANENT`],
+      understand:[`You descend.`,`The basement is larger than the church.`,`Much larger.`,`What waits below has been waiting since before the town.\nIt shows you something.`,`We cannot describe what you see.\n\nBut you understand now.\nEverything you thought was wrong.\nEverything you feared was right.\n\nCYCLE ${cycle} — TERMINUS`]
+    };
+    const lines=endings[type]||endings.escape;
+    let i=0;
+    const sc=document.getElementById('transition-screen');
+    const tx=document.getElementById('transition-text');
+    sc.classList.remove('hidden');
+    function next(){
+      if(i>=lines.length){
+        setTimeout(()=>{sc.classList.add('hidden');incrementCycle();document.getElementById('day-counter').textContent=getCycle();Game.loadMap('town');},2200);
+        return;
+      }
+      tx.textContent='';let j=0;const line=lines[i++];
+      const t=setInterval(()=>{tx.textContent+=line[j++];if(j>=line.length){clearInterval(t);setTimeout(next,2000);}},38);
+    }
+    next();
+  }
+  return{load,save,hasSave,clearSave,getCycle,incrementCycle,loadInventory,saveInventory,unlockLore,getUnlockedLore,invertControls,isInverted,triggerEnding};
+})();
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+const GameEvents=(()=>{
+  const L={};
+  return{on:(e,f)=>(L[e]=L[e]||[]).push(f),emit:(e,d)=>(L[e]||[]).forEach(f=>f(d))};
+})();
+
+const ITEMS={
+  iron_key:{id:'iron_key',name:'iron key',icon:'🗝',description:'Old. Heavier than it looks.'},
+  note_torn_page:{id:'note_torn_page',name:'torn page',icon:'📄',description:'Someone else was here.'},
+  note_dr_voss:{id:'note_dr_voss',name:'case notes',icon:'📋',description:"The handwriting deteriorates."},
+};
+
+// ═══════════════════════════════════════════════
+// MAIN GAME LOOP
+// ═══════════════════════════════════════════════
+const Game = (() => {
+  let frame=0,tick=0,running=false,keys={},consumed={};
+  function start(newGame=true){
+    Engine.init();
+    if(newGame)GameState.clearSave();
+    document.getElementById('day-counter').textContent=GameState.getCycle();
+    loadMap('town');
+    setupInput();
+    setupEvents();
+    running=true;
+    requestAnimationFrame(loop);
+  }
+  function loadMap(name,spawnOvr){
+    const m=World.loadMap(name);
+    if(!m)return;
+    const sx=spawnOvr?spawnOvr.spawnX:m.spawnX;
+    const sy=spawnOvr?spawnOvr.spawnY:m.spawnY;
+    Player.init(sx,sy);
+    const flavour={church_exterior:'The air is different here.',church_interior:'Something is listening.',forest_edge:'The trees are too still.',road_south:'The road is longer than you remember.'};
+    if(flavour[name])UI.showTransition(flavour[name],null,1600);
+  }
+  function setupInput(){
+    document.addEventListener('keydown',e=>{
+      if(!keys[e.key])consumed[e.key]=false;
+      keys[e.key]=true;
+      if((e.key==='e'||e.key==='E'||e.key==='Enter')&&!consumed[e.key]){
+        consumed[e.key]=true;
+        if(UI.isBlocking())UI.advanceDialogue();else Player.tryInteract();
+      }
+      if(e.key===' '&&!consumed[e.key]){
+        consumed[e.key]=true;e.preventDefault();
+        if(UI.isBlocking())UI.advanceDialogue();else Player.tryInteract();
+      }
+      if((e.key==='i'||e.key==='I')&&!consumed[e.key]){
+        consumed[e.key]=true;
+        const p=document.getElementById('inventory-panel');
+        if(p.classList.contains('hidden'))UI.showInventory(Player.getInventory());else UI.hideInventory();
+      }
+      if(e.key==='Escape'){UI.hideInventory();UI.hideNote();}
+    });
+    document.addEventListener('keyup',e=>{keys[e.key]=false;consumed[e.key]=false;});
+  }
+  function setupEvents(){
+    GameEvents.on('mapTransition',exit=>loadMap(exit.to,exit));
+    GameEvents.on('interact',obj=>{
+      if(obj.triggered&&obj.type!=='npc')return;
+      if(obj.type==='npc'){
+        let key=obj.dialogueKey;
+        if(obj.id==='maren'&&Player.getInventory().length>0)key='maren_second';
+        const lines=LORE.dialogues[key];
+        if(lines){UI.showDialogueSequence(lines);Sanity.drain(3);}
+      }else if(obj.type==='note'){
+        const note=LORE.notes[obj.itemId];
+        if(note){
+          UI.showNote(note);
+          Player.addItem({id:obj.itemId,name:note.title,icon:'📄',description:'A found document.',noteKey:obj.itemId});
+          obj.triggered=true;Sanity.drain(10);
+          const amap={note_torn_page:'archive_loop',note_dr_voss:'archive_maren',note_maren_letter:'archive_mirror',note_hidden_wall:'archive_watcher',note_game_manual:'archive_ending',note_basement_door:'archive_you'};
+          if(amap[obj.itemId])GameState.unlockLore(amap[obj.itemId]);
+        }
+      }else if(obj.type==='item'){
+        const item=ITEMS[obj.itemId]||{id:obj.itemId,name:obj.label||obj.itemId,icon:obj.icon||'?',description:''};
+        Player.addItem(item);obj.triggered=true;Sanity.drain(5);
+      }else if(obj.type==='sign'){
+        UI.showNote({content:obj.text});obj.triggered=true;
+      }
+    });
+    document.getElementById('btn-inv-close').addEventListener('click',UI.hideInventory);
+    document.getElementById('btn-note-close').addEventListener('click',UI.hideNote);
+  }
+  function loop(){
+    if(!running)return;
+    frame++;tick++;
+    let ek=keys;
+    if(GameState.isInverted()){
+      ek={...keys,ArrowLeft:keys['ArrowRight'],ArrowRight:keys['ArrowLeft'],ArrowUp:keys['ArrowDown'],ArrowDown:keys['ArrowUp'],a:keys['d'],d:keys['a'],w:keys['s'],s:keys['w']};
+    }
+    Player.update(ek);
+    Sanity.tick();
+    Engine.clear();
+    World.render(tick,Sanity.get());
+    Player.render(tick);
+    const map=World.currentMap;
+    if(map&&map.interactables)map.interactables.filter(o=>o.type==='npc').forEach(n=>NPC.render(n,tick));
+    const te=document.getElementById('hud-time');
+    if(te){const t=Math.floor(tick/60)%1440;te.textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+    requestAnimationFrame(loop);
+  }
+  return{start,loadMap};
+})();
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+(function boot(){
+  const LINES=[
+    'STILL AWAKE v0.██████',
+    'loading...',
+    '',
+    'WARNING: This software exhibits anomalous behavior',
+    'under prolonged use. Developer notes indicate this',
+    'is intentional. Developer is unavailable for comment.',
+    '',
+    'memory check.......... OK',
+    'audio subsystem....... OK',
+    'sanity monitor........ OK',
+    'external observers.... ██',
+    '',
+    'initializing world of CALLOW...',
+    '',
+    '> ready.',
+  ];
+  const el=document.getElementById('boot-text');
+  let li=0,ci=0,cur='';
+  function typeNext(){
+    if(li>=LINES.length){
+      setTimeout(()=>{
+        const bs=document.getElementById('boot-screen');
+        bs.style.transition='opacity 1.2s';bs.style.opacity='0';
+        setTimeout(()=>{bs.classList.add('hidden');showTitle();},1200);
+      },500);
+      return;
+    }
+    const line=LINES[li];
+    if(ci<line.length){
+      cur+=line[ci++];
+      el.textContent=LINES.slice(0,li).join('\n')+'\n'+cur;
+      setTimeout(typeNext,16+Math.random()*14);
+    }else{
+      li++;ci=0;cur='';
+      el.textContent=LINES.slice(0,li).join('\n')+'\n';
+      setTimeout(typeNext,line===''?70:100);
+    }
+  }
+  typeNext();
+
+  function showTitle(){
+    document.getElementById('title-screen').classList.remove('hidden');
+    const cycle=GameState.getCycle();
+    const warn=document.getElementById('title-warning');
+    if(cycle>1){
+      warn.textContent=`Cycle ${cycle}. You came back.`;
+      document.getElementById('btn-continue').style.color='#cc2233';
+    }else{
+      document.getElementById('btn-continue').style.opacity='0.3';
+      document.getElementById('btn-continue').style.pointerEvents='none';
+    }
+  }
+
+  document.getElementById('btn-new-game').addEventListener('click',()=>{
+    document.getElementById('title-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    Game.start(true);
+  });
+  document.getElementById('btn-continue').addEventListener('click',()=>{
+    if(!GameState.hasSave())return;
+    document.getElementById('title-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    Game.start(false);
+  });
+  document.getElementById('btn-lore').addEventListener('click',()=>{
+    document.getElementById('title-screen').classList.add('hidden');
+    document.getElementById('lore-screen').classList.remove('hidden');
+    UI.buildLoreScreen();
+  });
+  document.getElementById('btn-lore-back').addEventListener('click',()=>{
+    document.getElementById('lore-screen').classList.add('hidden');
+    document.getElementById('title-screen').classList.remove('hidden');
+  });
+})();
+</script>
+</body>
+</html>
